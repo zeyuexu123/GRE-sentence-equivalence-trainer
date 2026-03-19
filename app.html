@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRE Sentence Equivalence Trainer</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    text-align:center;
+    margin:0;
+    padding:10px;
+    background:#fafafa;
+}
+
+h2{
+    font-size:20px;
+    margin-bottom:10px;
+}
+
+#score, #instruction{
+    font-size:16px;
+    margin:5px 0;
+}
+
+#words{
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap:10px;
+    margin-top:15px;
+}
+
+@media(min-width:600px){
+    #words{
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.word{
+    border:2px solid #333;
+    padding:15px;
+    cursor:pointer;
+    background:#f5f5f5;
+    border-radius:10px;
+    font-size:16px;
+    user-select:none;
+    touch-action:manipulation;
+    min-height:50px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+.word span.translation{
+    margin-top:5px;
+    font-size:14px;
+    color:#555;
+}
+
+.pair1{ background:#ffd966; }
+.pair2{ background:#a4c2f4; }
+
+#controls{
+    position:sticky;
+    bottom:0;
+    background:white;
+    padding:10px 0;
+    margin-top:15px;
+    border-top:1px solid #ddd;
+}
+
+button{
+    width:45%;
+    padding:15px;
+    font-size:16px;
+    margin:5px;
+    border:none;
+    border-radius:10px;
+    background:#333;
+    color:white;
+}
+
+button:active{
+    transform:scale(0.97);
+}
+</style>
+</head>
+
+<body>
+
+<h2>GRE Sentence Equivalence</h2>
+
+<div id="score"></div>
+<div id="instruction"></div>
+<div id="words"></div>
+
+<div id="controls">
+    <button onclick="submitAnswer()">Submit</button>
+    <button onclick="nextRound()">Next</button>
+</div>
+
+<script src="gre_pair.js"></script>
+<script src="gre_translation.js"></script>
+<script>
+
+let words = []
+let correctPairs = []
+let selected = []
+let round = 1
+let score = 0
+let pairCount = 2
+
+// Build a flat word pool once
+const allWords = [...new Set(grePairs.flat())]
+
+function generateRound() {
+
+    pairCount = Math.random() < 0.5 ? 1 : 2
+
+    // pick correct pairs directly from grePairs
+    correctPairs = sample(grePairs, pairCount)
+
+    let correctWords = correctPairs.flat()
+
+    // distractors = words not in correct answer
+    const distractorPool = allWords.filter(w => !correctWords.includes(w))
+    const distractors = sample(distractorPool, 6 - correctWords.length)
+
+    words = shuffle([...correctWords, ...distractors])
+
+    renderWords()
+}
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    return arr
+}
+
+function sample(arr, n) {
+    return shuffle([...arr]).slice(0, n)
+}
+
+function renderWords(){
+
+    const container = document.getElementById("words")
+    container.innerHTML = ""
+
+    words.forEach((w)=>{
+        const div = document.createElement("div")
+        div.className = "word"
+        div.innerText = w
+        div.onclick = ()=>selectWord(div,w)
+        container.appendChild(div)
+    })
+
+    document.getElementById("score").innerText =
+        "Round " + round + " | Score " + score
+
+    document.getElementById("instruction").innerText =
+        "Select 1 to 2 pairs"
+}
+
+function selectWord(div,word){
+
+    if(selected.includes(word)){
+        selected = selected.filter(x=>x!==word)
+        div.classList.remove("pair1","pair2")
+        return
+    }
+
+    if(selected.length >= 4) return
+
+    selected.push(word)
+
+    if(selected.length <= 2)
+        div.classList.add("pair1")
+    else
+        div.classList.add("pair2")
+}
+
+function submitAnswer(){
+
+    // if(selected.length !== pairCount * 2){
+    //     alert("You must select exactly " + pairCount + " pair(s)")
+    //     return
+    // }
+
+    let userPairs = []
+    for(let i=0;i<selected.length;i+=2){
+        userPairs.push(
+            [selected[i], selected[i+1]].sort().join("|")
+        )
+    }
+
+    let correct = correctPairs.map(p => p.slice().sort().join("|"))
+
+    // --- Show translations ---
+    document.querySelectorAll("#words .word").forEach(div=>{
+        const word = div.innerText
+
+        let translations = greTranslations[word] || []
+        let text = Array.isArray(translations)
+            ? translations.join(" / ")
+            : translations
+
+        if(!div.querySelector(".translation")){
+            const span = document.createElement("span")
+            span.className = "translation"
+            span.innerText = text
+            div.appendChild(span)
+        }
+    })
+
+    if(userPairs.length !== correct.length){
+        alert("Incorrect\nCorrect pairs:\n" +
+            correctPairs.map(p=>p.join(" — ")).join("\n"))
+        return
+    }
+
+    let success = true
+
+    correct.forEach(cp=>{
+        if(!userPairs.includes(cp)) success = false
+    })
+
+    if(success){
+        score++
+        alert("Correct!")
+    }else{
+        alert("Incorrect\nCorrect pairs:\n" +
+            correctPairs.map(p=>p.join(" — ")).join("\n"))
+    }
+}
+
+function nextRound(){
+    selected = []
+    round++
+    generateRound()
+}
+
+generateRound()
+
+</script>
+
+
+</body>
+</html>
